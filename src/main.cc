@@ -7,8 +7,7 @@
 #include <vector>
 #include <iostream>
 #include <random>
-
-GLFWwindow* window;
+#include <chrono>
 
 GLint getUniform(GLuint program, const std::string& name) {
 	const GLint uniform = glGetUniformLocation(program, name.c_str());
@@ -19,9 +18,9 @@ GLint getUniform(GLuint program, const std::string& name) {
 }
 
 GLint compileShader(const std::string& source, GLenum type) {
-	GLint local_shader = glCreateShader(type);
+	GLint shader = glCreateShader(type);
 
-	if ( !local_shader ) {
+	if ( !shader ) {
 		std::cerr << "Cannot create a shader of type " << type << std::endl;
 		exit(-1);
 	}
@@ -29,24 +28,24 @@ GLint compileShader(const std::string& source, GLenum type) {
 	const char* source_data = source.c_str();
 	const int source_length = source.size();
 
-	glShaderSource(local_shader, 1, &source_data, &source_length);
-	glCompileShader(local_shader);
+	glShaderSource(shader, 1, &source_data, &source_length);
+	glCompileShader(shader);
 
 	GLint compiled;
-	glGetShaderiv(local_shader, GL_COMPILE_STATUS, &compiled);
+	glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
 	if ( !compiled ) {
 		std::cerr << "Cannot compile shader" << std::endl;
 		GLint maxLength = 0;
-		glGetShaderiv(local_shader, GL_INFO_LOG_LENGTH, &maxLength);
+		glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &maxLength);
 		std::vector<GLchar> errorLog(maxLength);
-		glGetShaderInfoLog(local_shader, maxLength, &maxLength, &errorLog[0]);
+		glGetShaderInfoLog(shader, maxLength, &maxLength, &errorLog[0]);
 		for( auto c : errorLog ) {
 			std::cerr << c;
 		}
 		std::cerr << std::endl;
 	}
 
-	return local_shader;
+	return shader;
 }
 
 GLint setupShader() {
@@ -149,18 +148,36 @@ void cursor_pos_callback(GLFWwindow*, double x, double y) {
 	mouse_y = world_height/2 - world_height * (y / window_height);
 }
 
+std::vector<GLfloat> makeInitialParticles(std::size_t count) {
+	std::vector<GLfloat> buffer;
+	buffer.reserve(3*count);
+
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::uniform_real_distribution<GLfloat> distX(-world_width/2., world_width/2.);
+	std::uniform_real_distribution<GLfloat> distY(-world_height/2., world_height/2.);
+	std::uniform_real_distribution<GLfloat> distAge(0., 5.);
+
+	for ( std::size_t i = 0; i < count; ++i ) {
+		buffer.emplace_back(distX(gen));
+		buffer.emplace_back(distY(gen));
+		buffer.emplace_back(distAge(gen));
+	}
+
+	return buffer;
+}
+
 int main() {
 	if( !glfwInit() ) {
 		std::cerr <<  "Failed to initialize GLFW" << std::endl;
 		return -1;
 	}
 
-	glfwWindowHint(GLFW_SAMPLES, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-	window = glfwCreateWindow(window_width, window_height, "shader", NULL, NULL);
+	GLFWwindow* const window = glfwCreateWindow(window_width, window_height, "computicle", NULL, NULL);
 	if( window == NULL ){
 		std::cerr << "Failed to open GLFW window." << std::endl;
 		glfwTerminate();
@@ -170,7 +187,6 @@ int main() {
 	glfwSetCursorPosCallback(window, cursor_pos_callback);
 	glfwMakeContextCurrent(window);
 
-	glewExperimental = true;
 	if ( glewInit() != GLEW_OK ) {
 		std::cerr << "Failed to initialize GLEW" << std::endl;
 		glfwTerminate();
@@ -185,47 +201,40 @@ int main() {
 	glGenVertexArrays(1, &VertexArrayID);
 	glBindVertexArray(VertexArrayID);
 
-	GLint ProgramID = setupShader();
-	GLuint MatrixID = glGetUniformLocation(ProgramID, "MVP");
-	GLuint MouseID  = glGetUniformLocation(ProgramID, "mouse");
+	GLint ShaderID = setupShader();
+	GLuint MatrixID = glGetUniformLocation(ShaderID, "MVP");
+	GLuint MouseID  = glGetUniformLocation(ShaderID, "mouse");
 
-	GLint ComputeProgramID = setupComputeShader();
-	GLuint WorldID = glGetUniformLocation(ComputeProgramID, "world");
+	GLint ComputeShaderID = setupComputeShader();
+	GLuint WorldID = glGetUniformLocation(ComputeShaderID, "world");
 
 	updateMVP();
 
-	const std::size_t particle_count = 100000; 
+	const std::size_t particle_count = 500000;
 
-	std::vector<GLfloat> vertex_buffer_data;
-	vertex_buffer_data.reserve(3*particle_count);
-
-	std::random_device rd;
-	std::mt19937 gen(rd());
-	std::uniform_real_distribution<GLfloat> distX(-world_width/2.f, world_width/2.f);
-	std::uniform_real_distribution<GLfloat> distY(-world_height/2.f, world_height/2.f);
-	std::uniform_real_distribution<GLfloat> distAge(0.f, 5.f);
-
-	for ( int i = 0; i < particle_count; ++i ) {
-		vertex_buffer_data.emplace_back(distX(gen));
-		vertex_buffer_data.emplace_back(distY(gen));
-		vertex_buffer_data.emplace_back(distAge(gen));
-	}
+	auto vertex_buffer_data = makeInitialParticles(particle_count);
 
 	GLuint vertexbuffer;
 	glGenBuffers(1, &vertexbuffer);
 	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-	glBufferData(GL_ARRAY_BUFFER,
-		vertex_buffer_data.size() * sizeof(GLfloat), &vertex_buffer_data[0], GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, vertex_buffer_data.size() * sizeof(GLfloat), &vertex_buffer_data[0], GL_STATIC_DRAW);
+
+	auto lastFrame = std::chrono::high_resolution_clock::now();
 
 	do {
-		glUseProgram(ComputeProgramID);
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, vertexbuffer);
-		glUniform2f(WorldID, world_width, world_height);
-		glDispatchCompute(particle_count, 1, 1);
+		// update particles at most 50 times per second
+		if ( std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - lastFrame).count() >= 20 ) {
+			glUseProgram(ComputeShaderID);
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, vertexbuffer);
+			glUniform2f(WorldID, world_width, world_height);
+			glDispatchCompute(particle_count, 1, 1);
+
+			lastFrame = std::chrono::high_resolution_clock::now();
+		}
 
 		glClear(GL_COLOR_BUFFER_BIT);
 
-		glUseProgram(ProgramID);
+		glUseProgram(ShaderID);
 
 		glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
 		glUniform2f(MouseID, mouse_x, mouse_y);
@@ -246,8 +255,8 @@ int main() {
 
 	glDeleteBuffers(1, &vertexbuffer);
 	glDeleteVertexArrays(1, &VertexArrayID);
-	glDeleteProgram(ProgramID);
-	glDeleteProgram(ComputeProgramID);
+	glDeleteProgram(ShaderID);
+	glDeleteProgram(ComputeShaderID);
 
 	glfwTerminate();
 

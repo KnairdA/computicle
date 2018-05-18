@@ -7,12 +7,12 @@ set(
 )
 
 add_executable(
-	shader
-		main.cc
+	computicle
+		src/main.cc
 )
 
 target_link_libraries(
-	shader
+	computicle
 		GL
 		GLEW
 		glfw
