@@ -9,6 +9,10 @@
 #include <random>
 #include <chrono>
 
+#include "shader/vertex.glsl"
+#include "shader/fragment.glsl"
+#include "shader/compute.glsl"
+
 GLint getUniform(GLuint program, const std::string& name) {
 	const GLint uniform = glGetUniformLocation(program, name.c_str());
 	if ( uniform == -1 ) {
@@ -49,73 +53,22 @@ GLint compileShader(const std::string& source, GLenum type) {
 }
 
 GLint setupShader() {
-	#define GLSL(shader) #shader
 	GLint shader = glCreateProgram();
-
-	glAttachShader(shader, compileShader(GLSL(
-		uniform mat4 MVP;
-
-		float distance(vec2 v, vec2 w) {
-			vec2 u = v - w;
-			return sqrt(u.x*u.x + u.y*u.y);
-		}
-
-		void main() {
-			gl_Position = MVP * vec4(gl_Vertex.xy, 0.0, 1.0);
-			gl_FrontColor = vec4(max(1. - gl_Vertex.z/5., 0.1), 0., 0., 0.);
-		}),
-		GL_VERTEX_SHADER));
-
-	glAttachShader(shader, compileShader(GLSL(
-		void main() {
-			gl_FragColor = gl_Color;
-		}),
-		GL_FRAGMENT_SHADER));
-
+	glAttachShader(shader, compileShader(VERTEX_SHADER_CODE, GL_VERTEX_SHADER));
+	glAttachShader(shader, compileShader(FRAGMENT_SHADER_CODE, GL_FRAGMENT_SHADER));
 	glLinkProgram(shader);
 	return shader;
 }
 
 GLint setupComputeShader() {
 	GLint shader = glCreateProgram();
-	glAttachShader(shader, compileShader("#version 430\n" GLSL(
-		layout (local_size_x = 1) in;
-		layout (std430, binding=1) buffer bufferA{ float data[]; };
-		uniform vec2 world;
-
-		float rand(vec2 co){
-			return fract(sin(dot(co.xy, vec2(12.9898,78.233))) * 43758.5453);
-		}
-
-		bool insideWorld(vec2 v) {
-			return v.x > -world.x/2.
-			    && v.x <  world.x/2.
-				&& v.y > -world.y/2.
-				&& v.y <  world.y/2.;
-		}
-
-		void main() {
-			uint idx = 3*gl_GlobalInvocationID.x;
-			vec2 v = vec2(data[idx+0], data[idx+1]);
-
-			if ( data[idx+2] < 5. && insideWorld(v) ) {
-				data[idx+0] += 0.01 * cos(v.x*cos(v.y));
-				data[idx+1] += 0.01 * sin(v.x-v.y);
-				data[idx+2] += 0.01;
-			} else {
-				data[idx+0] = -(world.x/2.) + rand(vec2(data[idx+1], data[idx+0])) * world.x;
-				data[idx+1] = -(world.y/2.) + rand(vec2(data[idx+0], data[idx+1])) * world.y;
-				data[idx+2] = uint(rand(v) * 5.);
-			}
-		}),
-		GL_COMPUTE_SHADER));
+	glAttachShader(shader, compileShader(COMPUTE_SHADER_CODE, GL_COMPUTE_SHADER));
 	glLinkProgram(shader);
 	return shader;
 }
 
 int window_width  = 800;
 int window_height = 600;
-double mouse_x, mouse_y;
 float world_width, world_height;
 glm::mat4 MVP;
 
@@ -141,11 +94,6 @@ void window_size_callback(GLFWwindow*, int width, int height) {
 	window_height = height;
 	glViewport(0, 0, width, height);
 	updateMVP();
-}
-
-void cursor_pos_callback(GLFWwindow*, double x, double y) {
-	mouse_x = -(world_width/2) + world_width * (x / window_width);
-	mouse_y = world_height/2 - world_height * (y / window_height);
 }
 
 std::vector<GLfloat> makeInitialParticles(std::size_t count) {
@@ -184,7 +132,6 @@ int main() {
 		return -1;
 	}
 	glfwSetWindowSizeCallback(window, window_size_callback);
-	glfwSetCursorPosCallback(window, cursor_pos_callback);
 	glfwMakeContextCurrent(window);
 
 	if ( glewInit() != GLEW_OK ) {
@@ -203,14 +150,13 @@ int main() {
 
 	GLint ShaderID = setupShader();
 	GLuint MatrixID = glGetUniformLocation(ShaderID, "MVP");
-	GLuint MouseID  = glGetUniformLocation(ShaderID, "mouse");
 
 	GLint ComputeShaderID = setupComputeShader();
 	GLuint WorldID = glGetUniformLocation(ComputeShaderID, "world");
 
 	updateMVP();
 
-	const std::size_t particle_count = 500000;
+	const std::size_t particle_count = 100000;
 
 	auto vertex_buffer_data = makeInitialParticles(particle_count);
 
@@ -237,7 +183,6 @@ int main() {
 		glUseProgram(ShaderID);
 
 		glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
-		glUniform2f(MouseID, mouse_x, mouse_y);
 
 		glEnableVertexAttribArray(0);
 		glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
