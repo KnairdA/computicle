@@ -69,10 +69,38 @@ GLint setupComputeShader() {
 	return shader;
 }
 
+GLint setupTextureShader() {
+	GLint shader = glCreateProgram();
+	glAttachShader(shader, compileShader(R"(
+		#version 330 core
+		layout (location = 0) in vec2 screen_vertex;
+		layout (location = 1) in vec2 texture_vertex;
+		out vec2 TexCoords;
+
+		void main() {
+			gl_Position = vec4(screen_vertex, 0.0, 1.0);
+			TexCoords = texture_vertex;
+		}
+	)", GL_VERTEX_SHADER));
+	glAttachShader(shader, compileShader(R"(
+		#version 330 core
+		out vec4 FragColor;
+		in vec2 TexCoords;
+		uniform sampler2D screen_texture;
+
+		void main() {
+			FragColor = texture(screen_texture, TexCoords);
+		}
+	)", GL_FRAGMENT_SHADER));
+	glLinkProgram(shader);
+	return shader;
+}
+
 int window_width  = 800;
 int window_height = 600;
 float world_width, world_height;
 glm::mat4 MVP;
+GLuint FramebufferID;
 
 void updateMVP() {
 	world_width  = 20.f;
@@ -94,7 +122,12 @@ void updateMVP() {
 void window_size_callback(GLFWwindow*, int width, int height) {
 	window_width  = width;
 	window_height = height;
+
+	glBindFramebuffer(GL_FRAMEBUFFER, FramebufferID);
+
 	glViewport(0, 0, width, height);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, window_width, window_height, 0, GL_RGB, GL_UNSIGNED_BYTE, (void*)0);
+
 	updateMVP();
 }
 
@@ -145,6 +178,22 @@ int main() {
 
 	glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
 
+	glGenFramebuffers(1, &FramebufferID);
+	glBindFramebuffer(GL_FRAMEBUFFER, FramebufferID);
+
+	GLuint TextureID;
+	glGenTextures(1, &TextureID);
+	glBindTexture(GL_TEXTURE_2D, TextureID);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, window_width, window_height, 0, GL_RGB, GL_UNSIGNED_BYTE, (void*)0);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, TextureID, 0);
+
+	if ( glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE ) {
+		std::cerr << "Texture framebuffer error" << std::endl;
+		return -1;
+	}
+
 	glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
 
 	updateMVP();
@@ -173,9 +222,43 @@ int main() {
 		GL_STATIC_DRAW
 	);
 
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	GLuint QuadVertexArrayID;
+	glGenVertexArrays(1, &QuadVertexArrayID);
+	glBindVertexArray(QuadVertexArrayID);
+	GLuint QuadVertexBufferID;
+	glGenBuffers(1, &QuadVertexBufferID);
+	glBindBuffer(GL_ARRAY_BUFFER, QuadVertexBufferID);
+	std::vector<GLfloat> quad_buffer_data{
+		-1.f,  1.f, 0.f, 1.f,
+		-1.f, -1.f, 0.f, 0.f,
+		 1.f, -1.f, 1.f, 0.f,
+
+		-1.f,  1.f, 0.f, 1.f,
+		 1.f, -1.f, 1.f, 0.f,
+		 1.f,  1.f, 1.f, 1.f
+	};
+	glBufferData(
+		GL_ARRAY_BUFFER,
+		quad_buffer_data.size() * sizeof(GLfloat),
+		quad_buffer_data.data(),
+		GL_STATIC_DRAW
+	);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4*sizeof(GLfloat), (void*)0);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4*sizeof(GLfloat), (void*)(2*sizeof(GLfloat)));
+
+	GLuint TextureShaderID = setupTextureShader();
+	GLuint ScreenTextureID = glGetUniformLocation(TextureShaderID, "screen_texture");
+	glUniform1i(ScreenTextureID, 0);
+
 	auto lastFrame = std::chrono::high_resolution_clock::now();
 
 	do {
+		glBindFramebuffer(GL_FRAMEBUFFER, FramebufferID);
+
 		// update particles at most 50 times per second
 		if ( std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - lastFrame).count() >= 20 ) {
 			glUseProgram(ComputeShaderID);
@@ -188,15 +271,29 @@ int main() {
 			lastFrame = std::chrono::high_resolution_clock::now();
 		}
 
-		glClear(GL_COLOR_BUFFER_BIT);
-
 		glUseProgram(ShaderID);
+
+		glClear(GL_COLOR_BUFFER_BIT);
 
 		glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
 
 		glBindBuffer(GL_ARRAY_BUFFER, VertexBufferID);
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
 		glDrawArrays(GL_POINTS, 0, 3*particle_count);
+
+		glUseProgram(0);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+		glUseProgram(TextureShaderID);
+
+		glBindTexture(GL_TEXTURE_2D, TextureID);
+		glBindBuffer(GL_ARRAY_BUFFER, QuadVertexBufferID);
+		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4*sizeof(GLfloat), (void*)0);
+		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4*sizeof(GLfloat), (void*)(2*sizeof(GLfloat)));
+
+		glClear(GL_COLOR_BUFFER_BIT);
+		glDrawArrays(GL_TRIANGLES, 0, 6);
 
 		glUseProgram(0);
 
@@ -211,6 +308,7 @@ int main() {
 	glDeleteVertexArrays(1, &VertexArrayID);
 	glDeleteProgram(ShaderID);
 	glDeleteProgram(ComputeShaderID);
+	glDeleteFramebuffers(1, &FramebufferID);
 
 	glfwTerminate();
 
