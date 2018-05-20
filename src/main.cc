@@ -13,6 +13,8 @@
 #include "shader/fragment.glsl"
 #include "shader/compute.glsl"
 
+const std::size_t particle_count = 100000;
+
 GLint getUniform(GLuint program, const std::string& name) {
 	const GLint uniform = glGetUniformLocation(program, name.c_str());
 	if ( uniform == -1 ) {
@@ -126,7 +128,8 @@ int main() {
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
 	GLFWwindow* const window = glfwCreateWindow(window_width, window_height, "computicle", NULL, NULL);
-	if( window == NULL ){
+
+	if( window == nullptr ){
 		std::cerr << "Failed to open GLFW window." << std::endl;
 		glfwTerminate();
 		return -1;
@@ -144,26 +147,31 @@ int main() {
 
 	glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
 
-	GLuint VertexArrayID;
-	glGenVertexArrays(1, &VertexArrayID);
-	glBindVertexArray(VertexArrayID);
+	updateMVP();
 
-	GLint ShaderID = setupShader();
+	GLint ShaderID  = setupShader();
 	GLuint MatrixID = glGetUniformLocation(ShaderID, "MVP");
 
 	GLint ComputeShaderID = setupComputeShader();
 	GLuint WorldID = glGetUniformLocation(ComputeShaderID, "world");
 
-	updateMVP();
-
-	const std::size_t particle_count = 100000;
-
 	auto vertex_buffer_data = makeInitialParticles(particle_count);
 
-	GLuint vertexbuffer;
-	glGenBuffers(1, &vertexbuffer);
-	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-	glBufferData(GL_ARRAY_BUFFER, vertex_buffer_data.size() * sizeof(GLfloat), &vertex_buffer_data[0], GL_STATIC_DRAW);
+	GLuint VertexArrayID;
+	glGenVertexArrays(1, &VertexArrayID);
+	glBindVertexArray(VertexArrayID);
+	glEnableVertexAttribArray(0);
+
+	GLuint VertexBufferID;
+	glGenBuffers(1, &VertexBufferID);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, VertexBufferID);
+
+	glBufferData(
+		GL_SHADER_STORAGE_BUFFER,
+		vertex_buffer_data.size() * sizeof(GLfloat),
+		vertex_buffer_data.data(),
+		GL_STATIC_DRAW
+	);
 
 	auto lastFrame = std::chrono::high_resolution_clock::now();
 
@@ -171,9 +179,11 @@ int main() {
 		// update particles at most 50 times per second
 		if ( std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - lastFrame).count() >= 20 ) {
 			glUseProgram(ComputeShaderID);
-			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, vertexbuffer);
+
 			glUniform2f(WorldID, world_width, world_height);
 			glDispatchCompute(particle_count, 1, 1);
+
+			glUseProgram(0);
 
 			lastFrame = std::chrono::high_resolution_clock::now();
 		}
@@ -184,21 +194,20 @@ int main() {
 
 		glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
 
-		glEnableVertexAttribArray(0);
-		glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-
+		glBindBuffer(GL_ARRAY_BUFFER, VertexBufferID);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
 		glDrawArrays(GL_POINTS, 0, 3*particle_count);
 
-		glDisableVertexAttribArray(0);
+		glUseProgram(0);
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
 	while( glfwGetKey(window, GLFW_KEY_ESCAPE ) != GLFW_PRESS &&
-		   glfwWindowShouldClose(window) == 0 );
+	       glfwWindowShouldClose(window) == 0 );
 
-	glDeleteBuffers(1, &vertexbuffer);
+	glDeleteBuffers(1, &VertexBufferID);
+	glDisableVertexAttribArray(0);
 	glDeleteVertexArrays(1, &VertexArrayID);
 	glDeleteProgram(ShaderID);
 	glDeleteProgram(ComputeShaderID);
