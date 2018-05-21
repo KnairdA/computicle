@@ -1,3 +1,5 @@
+#pragma once
+
 #include "util.h"
 
 class ComputeShader {
@@ -33,6 +35,10 @@ public:
 		GLuint id = util::getUniform(_id, name);
 		glUniform2f(id, x, y);
 		return id;
+	}
+
+	void workOn(GLuint buffer) {
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, buffer);
 	}
 
 	void dispatch(std::size_t dimX) {

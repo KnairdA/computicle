@@ -12,9 +12,9 @@ float rand(vec2 co){
 
 bool insideWorld(vec2 v) {
 	return v.x > -world.x/2.
-		&& v.x <  world.x/2.
-		&& v.y > -world.y/2.
-		&& v.y <  world.y/2.;
+	    && v.x <  world.x/2.
+	    && v.y > -world.y/2.
+	    && v.y <  world.y/2.;
 }
 
 void main() {

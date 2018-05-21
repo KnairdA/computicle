@@ -1,5 +1,7 @@
 #pragma once
 
+#include <iostream>
+
 namespace util {
 
 GLint getUniform(GLuint program, const std::string& name) {
