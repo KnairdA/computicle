@@ -22,7 +22,7 @@ void main() {
 	vec2 v = vec2(data[idx+0], data[idx+1]);
 
 	if ( data[idx+2] < 5. && insideWorld(v) ) {
-		data[idx+0] += 0.01 * cos(v.x*cos(v.y));
+		data[idx+0] += 0.01 * cos(v.x*sin(v.y));
 		data[idx+1] += 0.01 * sin(v.x-v.y);
 		data[idx+2] += 0.01;
 	} else {
