@@ -1,8 +1,15 @@
 #pragma once
 
+#include <chrono>
 #include <iostream>
 
 namespace util {
+
+double millisecondsSince(std::chrono::time_point<std::chrono::high_resolution_clock>& pit) {
+	return std::chrono::duration_cast<std::chrono::milliseconds>(
+		std::chrono::high_resolution_clock::now() - pit
+	).count();
+}
 
 GLint getUniform(GLuint program, const std::string& name) {
 	const GLint uniform = glGetUniformLocation(program, name.c_str());

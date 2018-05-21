@@ -30,10 +30,10 @@ public:
 
 	~ParticleVertexBuffer() {
 		glDeleteBuffers(1, &_buffer);
-		glDeleteVertexArrays(1, &_buffer);
+		glDeleteVertexArrays(1, &_array);
 	}
 
-	void draw() {
+	void draw() const {
 		glBindVertexArray(_array);
 		glDrawArrays(GL_POINTS, 0, 3*_data.size());
 	}

@@ -18,7 +18,7 @@ public:
 		}
 	};
 
-	Guard use() {
+	Guard use() const {
 		return Guard(_id);
 	}
 
@@ -32,13 +32,13 @@ public:
 		glDeleteProgram(_id);
 	}
 
-	GLuint setUniform(const std::string& name, int value) {
+	GLuint setUniform(const std::string& name, int value) const {
 		GLuint id = util::getUniform(_id, name);
 		glUniform1i(id, value);
 		return id;
 	}
 
-	GLuint setUniform(const std::string& name, glm::mat4& M) {
+	GLuint setUniform(const std::string& name, glm::mat4& M) const {
 		GLuint id = util::getUniform(_id, name);
 		glUniformMatrix4fv(id, 1, GL_FALSE, &M[0][0]);
 		return id;

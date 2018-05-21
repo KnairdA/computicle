@@ -5,19 +5,24 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <random>
-#include <chrono>
 #include <memory>
+
+#include "particle_vertex_buffer.h"
+#include "texture_display_buffer.h"
 
 #include "graphic_shader.h"
 #include "compute_shader.h"
 #include "texture_buffer.h"
-#include "particle_vertex_buffer.h"
 
 #include "shader/vertex.glsl"
 #include "shader/fragment.glsl"
 #include "shader/compute.glsl"
 
+#include "shader/display_vertex.glsl"
+#include "shader/display_fragment.glsl"
+
 const std::size_t particle_count = 100000;
+const auto        max_ups        = 50;
 
 int window_width  = 800;
 int window_height = 600;
@@ -30,18 +35,20 @@ std::unique_ptr<ParticleVertexBuffer> particleBuffer;
 void updateMVP() {
 	world_width  = 20.f;
 	world_height = world_width / window_width * window_height;
+
 	glm::mat4 projection = glm::ortho(
 		-(world_width /2), world_width/2,
 		-(world_height/2), world_height/2,
 		0.1f, 100.0f
 	);
+
 	glm::mat4 view = glm::lookAt(
 		glm::vec3(0,0,20),
 		glm::vec3(0,0,0),
 		glm::vec3(0,1,0)
 	);
-	glm::mat4 model = glm::mat4(1.0f);
-	MVP = projection * view * model;
+
+	MVP = projection * view;
 }
 
 void window_size_callback(GLFWwindow*, int width, int height) {
@@ -102,73 +109,26 @@ int main() {
 
 	updateMVP();
 
-	GraphicShader sceneShader(VERTEX_SHADER_CODE, FRAGMENT_SHADER_CODE);
-	GraphicShader displayShader(R"(
-		#version 330 core
-		layout (location = 0) in vec2 screen_vertex;
-		layout (location = 1) in vec2 texture_vertex;
-		out vec2 TexCoords;
-
-		void main() {
-			gl_Position = vec4(screen_vertex, 0.0, 1.0);
-			TexCoords = texture_vertex;
-		}
-		)", R"(
-		#version 330 core
-		out vec4 FragColor;
-		in vec2 TexCoords;
-		uniform sampler2D screen_texture;
-
-		void main() {
-			FragColor = texture(screen_texture, TexCoords);
-		}
-		)");
-
-	sceneShader.setUniform("MVP", MVP);
-	displayShader.setUniform("screen_texture", 0);
-
-	textureBuffer = std::make_unique<TextureBuffer>(window_width, window_height);
+	textureBuffer  = std::make_unique<TextureBuffer>(
+		window_width, window_height);
 	particleBuffer = std::make_unique<ParticleVertexBuffer>(
 		makeInitialParticles(particle_count));
+
+	GraphicShader sceneShader(VERTEX_SHADER_CODE, FRAGMENT_SHADER_CODE);
 
 	ComputeShader computeShader(COMPUTE_SHADER_CODE);
 	computeShader.workOn(particleBuffer->getBuffer());
 
-	const std::vector<GLfloat> quad_buffer_data{
-		-1.f,  1.f, 0.f, 1.f,
-		-1.f, -1.f, 0.f, 0.f,
-		 1.f, -1.f, 1.f, 0.f,
+	GraphicShader displayShader(DISPLAY_VERTEX_SHADER_CODE,
+	                            DISPLAY_FRAGMENT_SHADER_CODE);
+	displayShader.setUniform("screen_texture", 0);
 
-		-1.f,  1.f, 0.f, 1.f,
-		 1.f, -1.f, 1.f, 0.f,
-		 1.f,  1.f, 1.f, 1.f
-	};
-
-	GLuint QuadVertexArrayID;
-	GLuint QuadVertexBufferID;
-
-	glGenVertexArrays(1, &QuadVertexArrayID);
-	glGenBuffers(1, &QuadVertexBufferID);
-
-	glBindVertexArray(QuadVertexArrayID);
-	glBindBuffer(GL_ARRAY_BUFFER, QuadVertexBufferID);
-	glBufferData(
-		GL_ARRAY_BUFFER,
-		quad_buffer_data.size() * sizeof(GLfloat),
-		quad_buffer_data.data(),
-		GL_STATIC_DRAW
-	);
-
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4*sizeof(GLfloat), (void*)0);
-	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4*sizeof(GLfloat), (void*)(2*sizeof(GLfloat)));
+	TextureDisplayBuffer displayBuffer(textureBuffer->getTexture());
 
 	auto lastFrame = std::chrono::high_resolution_clock::now();
 
 	do {
-		// update particles at most 50 times per second
-		if ( std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - lastFrame).count() >= 20 ) {
+		if ( util::millisecondsSince(lastFrame) >= 1000/max_ups ) {
 			auto guard = computeShader.use();
 
 			computeShader.setUniform("world", world_width, world_height);
@@ -181,9 +141,9 @@ int main() {
 			auto texGuard = textureBuffer->use();
 			auto sdrGuard = sceneShader.use();
 
-			glClear(GL_COLOR_BUFFER_BIT);
-
 			sceneShader.setUniform("MVP", MVP);
+
+			glClear(GL_COLOR_BUFFER_BIT);
 
 			particleBuffer->draw();
 		}
@@ -191,11 +151,9 @@ int main() {
 		{
 			auto guard = displayShader.use();
 
-			glBindVertexArray(QuadVertexArrayID);
-			glBindTexture(GL_TEXTURE_2D, textureBuffer->getTexture());
-
 			glClear(GL_COLOR_BUFFER_BIT);
-			glDrawArrays(GL_TRIANGLES, 0, 6);
+
+			displayBuffer.draw();
 		}
 
 		glfwSwapBuffers(window);

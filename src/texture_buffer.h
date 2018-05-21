@@ -17,7 +17,7 @@ public:
 		}
 	};
 
-	Guard use() {
+	Guard use() const {
 		return Guard(_id);
 	}
 
@@ -42,7 +42,7 @@ public:
 		glDeleteFramebuffers(1, &_id);
 	}
 
-	void resize(std::size_t width, std::size_t height) {
+	void resize(std::size_t width, std::size_t height) const {
 		auto guard = use();
 
 		glViewport(0, 0, width, height);
