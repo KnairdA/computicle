@@ -46,6 +46,7 @@ public:
 		auto guard = use();
 
 		glViewport(0, 0, width, height);
+		glBindTexture(GL_TEXTURE_2D, _texture);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, (void*)0);
 	}
 

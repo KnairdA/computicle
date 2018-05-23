@@ -6,6 +6,7 @@
 
 #include <random>
 #include <memory>
+#include <algorithm>
 
 #include "particle_vertex_buffer.h"
 #include "texture_display_buffer.h"
@@ -21,15 +22,16 @@
 #include "shader/display_vertex.glsl"
 #include "shader/display_fragment.glsl"
 
-const std::size_t particle_count = 100000;
-const auto        max_ups        = 50;
+const unsigned int particle_count = 5000;
+const unsigned int max_ups        = 100;
+const unsigned int texture_count  = 10;
 
-int window_width  = 800;
-int window_height = 600;
+unsigned int window_width  = 800;
+unsigned int window_height = 600;
 float world_width, world_height;
 glm::mat4 MVP;
 
-std::unique_ptr<TextureBuffer>        textureBuffer;
+std::vector<std::unique_ptr<TextureBuffer>> textureBuffers;
 std::unique_ptr<ParticleVertexBuffer> particleBuffer;
 
 void updateMVP() {
@@ -55,7 +57,9 @@ void window_size_callback(GLFWwindow*, int width, int height) {
 	window_width  = width;
 	window_height = height;
 
-	textureBuffer->resize(width, height);
+	for ( auto& textureBuffer : textureBuffers ) {
+		textureBuffer->resize(width, height);
+	}
 
 	updateMVP();
 }
@@ -109,8 +113,11 @@ int main() {
 
 	updateMVP();
 
-	textureBuffer  = std::make_unique<TextureBuffer>(
-		window_width, window_height);
+	for ( unsigned int i = 0; i < texture_count; ++i ) {
+		textureBuffers.emplace_back(
+			new TextureBuffer(window_width, window_height));
+	}
+
 	particleBuffer = std::make_unique<ParticleVertexBuffer>(
 		makeInitialParticles(particle_count));
 
@@ -121,11 +128,16 @@ int main() {
 
 	GraphicShader displayShader(DISPLAY_VERTEX_SHADER_CODE,
 	                            DISPLAY_FRAGMENT_SHADER_CODE);
-	displayShader.setUniform("screen_texture", 0);
+	TextureDisplayBuffer displayBuffer;
 
-	TextureDisplayBuffer displayBuffer(textureBuffer->getTexture());
+	auto lastFrame  = std::chrono::high_resolution_clock::now();
+	auto lastRotate = std::chrono::high_resolution_clock::now();
+	bool justRotated = true;
 
-	auto lastFrame = std::chrono::high_resolution_clock::now();
+	std::vector<GLuint> textures;
+	for ( auto& textureBuffer : textureBuffers ) {
+		textures.emplace_back(textureBuffer->getTexture());
+	}
 
 	do {
 		if ( util::millisecondsSince(lastFrame) >= 1000/max_ups ) {
@@ -137,13 +149,23 @@ int main() {
 			lastFrame = std::chrono::high_resolution_clock::now();
 		}
 
+		if ( util::millisecondsSince(lastRotate) >= 1000/10 ) {
+			std::rotate(textures.begin(), textures.end()-1, textures.end());
+			std::rotate(textureBuffers.begin(), textureBuffers.end()-1, textureBuffers.end());
+			justRotated = true;
+			lastRotate = std::chrono::high_resolution_clock::now();
+		}
+
 		{
-			auto texGuard = textureBuffer->use();
+			auto texGuard = textureBuffers[0]->use();
 			auto sdrGuard = sceneShader.use();
 
 			sceneShader.setUniform("MVP", MVP);
 
-			glClear(GL_COLOR_BUFFER_BIT);
+			if ( justRotated ) {
+				glClear(GL_COLOR_BUFFER_BIT);
+				justRotated = false;
+			}
 
 			particleBuffer->draw();
 		}
@@ -151,9 +173,13 @@ int main() {
 		{
 			auto guard = displayShader.use();
 
+			for ( unsigned int i = 0; i < textures.size(); ++i ) {
+				displayShader.setUniform("screen_texture_" + std::to_string(i), i);
+			}
+
 			glClear(GL_COLOR_BUFFER_BIT);
 
-			displayBuffer.draw();
+			displayBuffer.draw(textures);
 		}
 
 		glfwSwapBuffers(window);

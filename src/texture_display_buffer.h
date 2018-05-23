@@ -6,12 +6,11 @@ class TextureDisplayBuffer {
 private:
 	const std::vector<GLfloat> _data;
 
-	GLuint _texture;
 	GLuint _array;
 	GLuint _buffer;
 
 public:
-	TextureDisplayBuffer(GLuint texture):
+	TextureDisplayBuffer():
 		_data{
 			-1.f,  1.f, 0.f, 1.f,
 			-1.f, -1.f, 0.f, 0.f,
@@ -20,8 +19,7 @@ public:
 			-1.f,  1.f, 0.f, 1.f,
 			 1.f, -1.f, 1.f, 0.f,
 			 1.f,  1.f, 1.f, 1.f
-		},
-		_texture(texture) {
+		} {
 		glGenVertexArrays(1, &_array);
 		glGenBuffers(1, &_buffer);
 
@@ -47,9 +45,14 @@ public:
 		glDeleteVertexArrays(1, &_array);
 	}
 
-	void draw() const {
+	void draw(const std::vector<GLuint>& textures) const {
 		glBindVertexArray(_array);
-		glBindTexture(GL_TEXTURE_2D, _texture);
+
+		for ( unsigned int i = 0; i < textures.size(); ++i ) {
+			glActiveTexture(GL_TEXTURE0+i);
+			glBindTexture(GL_TEXTURE_2D, textures[i]);
+		}
+
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 	}
 
