@@ -38,6 +38,12 @@ public:
 		return id;
 	}
 
+	GLuint setUniform(const std::string& name, const std::vector<GLuint>& v) const {
+		GLuint id = util::getUniform(_id, name);
+		glUniform1iv(id, v.size(), reinterpret_cast<const GLint*>(v.data()));
+		return id;
+	}
+
 	GLuint setUniform(const std::string& name, glm::mat4& M) const {
 		GLuint id = util::getUniform(_id, name);
 		glUniformMatrix4fv(id, 1, GL_FALSE, &M[0][0]);

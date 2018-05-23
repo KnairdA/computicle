@@ -22,9 +22,9 @@
 #include "shader/display_vertex.glsl"
 #include "shader/display_fragment.glsl"
 
-const unsigned int particle_count = 5000;
+const unsigned int particle_count = 1000;
 const unsigned int max_ups        = 100;
-const unsigned int texture_count  = 10;
+const unsigned int texture_count  = 20;
 
 unsigned int window_width  = 800;
 unsigned int window_height = 600;
@@ -173,9 +173,8 @@ int main() {
 		{
 			auto guard = displayShader.use();
 
-			for ( unsigned int i = 0; i < textures.size(); ++i ) {
-				displayShader.setUniform("screen_texture_" + std::to_string(i), i);
-			}
+			displayShader.setUniform("screen_textures",      textures);
+			displayShader.setUniform("screen_textures_size", textures.size());
 
 			glClear(GL_COLOR_BUFFER_BIT);
 

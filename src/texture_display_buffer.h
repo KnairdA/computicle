@@ -47,12 +47,7 @@ public:
 
 	void draw(const std::vector<GLuint>& textures) const {
 		glBindVertexArray(_array);
-
-		for ( unsigned int i = 0; i < textures.size(); ++i ) {
-			glActiveTexture(GL_TEXTURE0+i);
-			glBindTexture(GL_TEXTURE_2D, textures[i]);
-		}
-
+		glBindTextures(textures[0], textures.size(), textures.data());
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 	}
 
