@@ -21,6 +21,15 @@ vec2 explicitEuler(float h, vec2 v) {
 	return v + h * f(v);
 }
 
+vec2 classicalRungeKutta(float h, vec2 v) {
+	const vec2 k1 = f(v);
+	const vec2 k2 = f(v + h/2. * k1);
+	const vec2 k3 = f(v + h/2. * k2);
+	const vec2 k4 = f(v + h    * k3);
+
+	return v + h * (1./6.*k1 + 1./3.*k2 + 1./3.*k3 + 1./6.*k4);
+}
+
 // pseudo random numbers for particle placement
 
 float rand(vec2 v){
@@ -45,7 +54,7 @@ bool insideWorld(vec2 v) {
 void main() {
 	const uint i = 3*gl_GlobalInvocationID.x;
 	const vec2 v = vec2(data[i+0], data[i+1]);
-	const vec2 w = explicitEuler(0.01, v);
+	const vec2 w = classicalRungeKutta(0.01, v);
 
 	if ( data[i+2] < 5. && insideWorld(v) ) {
 		data[i+0]  = w.x;
