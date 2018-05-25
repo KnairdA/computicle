@@ -1,6 +1,3 @@
-#include <GL/glew.h>
-#include <GLFW/glfw3.h>
-
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -8,6 +5,7 @@
 #include <memory>
 #include <algorithm>
 
+#include "glfw_guard.h"
 #include "window.h"
 
 #include "particle_vertex_buffer.h"
@@ -33,13 +31,13 @@ float getWorldHeight(int window_width, int window_height, float world_width) {
 }
 
 glm::mat4 getMVP(float world_width, float world_height) {
-	glm::mat4 projection = glm::ortho(
+	const glm::mat4 projection = glm::ortho(
 		-(world_width /2), world_width/2,
 		-(world_height/2), world_height/2,
 		0.1f, 100.0f
 	);
 
-	glm::mat4 view = glm::lookAt(
+	const glm::mat4 view = glm::lookAt(
 		glm::vec3(0,0,1),
 		glm::vec3(0,0,0),
 		glm::vec3(0,1,0)
@@ -75,8 +73,10 @@ std::string getShaderFunction(const std::string& fx, const std::string& fy) {
 }
 
 int main() {
-	if( !glfwInit() ) {
-		std::cerr <<  "Failed to initialize GLFW." << std::endl;
+	GlfwGuard glfw;
+
+	if( !glfw.isGood() ) {
+		std::cerr << "Failed to initialize GLFW." << std::endl;
 		return -1;
 	}
 
@@ -84,7 +84,6 @@ int main() {
 
 	if ( !window.isGood() ) {
 		std::cerr << "Failed to open window." << std::endl;
-		glfwTerminate();
 		return -1;
 	}
 
@@ -191,6 +190,5 @@ int main() {
 		}
 	});
 
-	glfwTerminate();
 	return 0;
 }
