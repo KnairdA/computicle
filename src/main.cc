@@ -22,7 +22,7 @@
 #include "shader/display_vertex.glsl"
 #include "shader/display_fragment.glsl"
 
-const unsigned int particle_count = 1000;
+const unsigned int particle_count = 2500;
 const unsigned int max_ups        = 100;
 const unsigned int texture_count  = 20;
 
@@ -83,6 +83,13 @@ std::vector<GLfloat> makeInitialParticles(std::size_t count) {
 	return buffer;
 }
 
+std::string getShaderFunction(const std::string& fx, const std::string& fy) {
+	return COMPUTE_SHADER_CODE
+	    + "vec2 f(vec2 v) {"
+	    +     "return vec2(" + fx + "," + fy + ");"
+	    + "}";
+}
+
 int main() {
 	if( !glfwInit() ) {
 		std::cerr <<  "Failed to initialize GLFW" << std::endl;
@@ -123,7 +130,12 @@ int main() {
 
 	GraphicShader sceneShader(VERTEX_SHADER_CODE, FRAGMENT_SHADER_CODE);
 
-	ComputeShader computeShader(COMPUTE_SHADER_CODE);
+	ComputeShader computeShader(
+		getShaderFunction(
+			"cos(v.x*sin(v.y))",
+			"sin(v.x-v.y)"
+		)
+	);
 	computeShader.workOn(particleBuffer->getBuffer());
 
 	GraphicShader displayShader(DISPLAY_VERTEX_SHADER_CODE,

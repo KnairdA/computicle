@@ -6,16 +6,9 @@ layout (std430, binding=1) buffer bufferA{ float data[]; };
 
 uniform vec2 world;
 
-// vector field definition
-
-vec2 f(vec2 v) {
-	return vec2(
-		cos(v.x*sin(v.y)),
-		sin(v.x-v.y)
-	);
-}
-
 // ODE solver
+
+vec2 f(vec2); // field definition is to be appended
 
 vec2 explicitEuler(float h, vec2 v) {
 	return v + h * f(v);
