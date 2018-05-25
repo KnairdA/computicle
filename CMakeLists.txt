@@ -6,6 +6,10 @@ set(
 	"${CMAKE_CXX_FLAGS} -std=c++17 -W -Wall -Wextra -Winline -pedantic"
 )
 
+include_directories(
+	src/
+)
+
 add_executable(
 	computicle
 		src/main.cc

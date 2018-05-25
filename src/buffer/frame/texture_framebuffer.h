@@ -1,9 +1,11 @@
 #pragma once
 
-class TextureBuffer {
+class TextureFramebuffer {
 private:
 	GLuint _id;
 	GLuint _texture;
+
+	bool _good = false;
 
 public:
 	struct Guard {
@@ -21,7 +23,7 @@ public:
 		return Guard(_id);
 	}
 
-	TextureBuffer(std::size_t width, std::size_t height) {
+	TextureFramebuffer(std::size_t width, std::size_t height) {
 		glGenFramebuffers(1, &_id);
 
 		auto guard = use();
@@ -33,13 +35,17 @@ public:
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, _texture, 0);
 
-		if ( glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE ) {
-			std::cerr << "Texture framebuffer error" << std::endl;
+		if ( glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE ) {
+			_good = true;
 		}
 	}
 
-	~TextureBuffer() {
+	~TextureFramebuffer() {
 		glDeleteFramebuffers(1, &_id);
+	}
+
+	bool isGood() const {
+		return _good;
 	}
 
 	void resize(std::size_t width, std::size_t height) const {

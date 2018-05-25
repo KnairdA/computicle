@@ -5,22 +5,25 @@
 #include <memory>
 #include <algorithm>
 
-#include "glfw_guard.h"
-#include "window.h"
+#include "glfw/guard.h"
+#include "glfw/window.h"
 
-#include "particle_vertex_buffer.h"
-#include "texture_display_buffer.h"
+#include "buffer/frame/texture_framebuffer.h"
 
-#include "graphic_shader.h"
-#include "compute_shader.h"
-#include "texture_buffer.h"
+#include "buffer/vertex/particle_vertex_buffer.h"
+#include "buffer/vertex/texture_display_vertex_buffer.h"
 
-#include "shader/vertex.glsl"
-#include "shader/fragment.glsl"
-#include "shader/compute.glsl"
+#include "shader/wrap/graphic_shader.h"
+#include "shader/wrap/compute_shader.h"
 
-#include "shader/display_vertex.glsl"
-#include "shader/display_fragment.glsl"
+#include "shader/code/vertex.glsl"
+#include "shader/code/fragment.glsl"
+#include "shader/code/compute.glsl"
+
+#include "shader/code/display_vertex.glsl"
+#include "shader/code/display_fragment.glsl"
+
+#include "util.h"
 
 const unsigned int particle_count = 2500;
 const unsigned int max_ups        = 100;
@@ -95,10 +98,10 @@ int main() {
 
 	glm::mat4 MVP = getMVP(world_width,  world_height);
 
-	std::vector<std::unique_ptr<TextureBuffer>> texture_buffers;
+	std::vector<std::unique_ptr<TextureFramebuffer>> texture_framebuffers;
 
 	std::unique_ptr<ParticleVertexBuffer> particle_buffer;
-	std::unique_ptr<TextureDisplayBuffer> display_buffer;
+	std::unique_ptr<TextureDisplayVertexBuffer> display_buffer;
 
 	std::unique_ptr<GraphicShader> scene_shader;
 	std::unique_ptr<ComputeShader> compute_shader;
@@ -106,13 +109,13 @@ int main() {
 
 	window.init([&]() {
 		for ( unsigned int i = 0; i < texture_count; ++i ) {
-			texture_buffers.emplace_back(
-				new TextureBuffer(window_width, window_height));
+			texture_framebuffers.emplace_back(
+				new TextureFramebuffer(window_width, window_height));
 		}
 
 		particle_buffer = std::make_unique<ParticleVertexBuffer>(
 			makeInitialParticles(particle_count, world_width, world_height));
-		display_buffer  = std::make_unique<TextureDisplayBuffer>();
+		display_buffer  = std::make_unique<TextureDisplayVertexBuffer>();
 
 		scene_shader = std::make_unique<GraphicShader>(
 			VERTEX_SHADER_CODE, FRAGMENT_SHADER_CODE);
@@ -124,12 +127,20 @@ int main() {
 			DISPLAY_VERTEX_SHADER_CODE, DISPLAY_FRAGMENT_SHADER_CODE);
 	});
 
+	if ( std::any_of(texture_framebuffers.cbegin(), texture_framebuffers.cend(),
+		[](auto& texture_framebuffer) -> bool {
+			return !texture_framebuffer->isGood();
+		}) ) {
+		std::cerr << "Texture framebuffer error" << std::endl;
+		return -1;
+	}
+
 	auto lastFrame  = std::chrono::high_resolution_clock::now();
 	auto lastRotate = std::chrono::high_resolution_clock::now();
 	bool justRotated = true;
 
 	std::vector<GLuint> textures;
-	for ( const auto& texture_buffer : texture_buffers ) {
+	for ( const auto& texture_buffer : texture_framebuffers ) {
 		textures.emplace_back(texture_buffer->getTexture());
 	}
 
@@ -142,7 +153,7 @@ int main() {
 
 			MVP = getMVP(world_width, world_height);
 
-			for ( auto& texture_buffer : texture_buffers ) {
+			for ( auto& texture_buffer : texture_framebuffers ) {
 				texture_buffer->resize(window_width, window_height);
 			}
 		}
@@ -158,14 +169,14 @@ int main() {
 
 		if ( util::millisecondsSince(lastRotate) >= 1000/10 ) {
 			std::rotate(textures.begin(), textures.end()-1, textures.end());
-			std::rotate(texture_buffers.begin(), texture_buffers.end()-1, texture_buffers.end());
+			std::rotate(texture_framebuffers.begin(), texture_framebuffers.end()-1, texture_framebuffers.end());
 			justRotated = true;
 
 			lastRotate = std::chrono::high_resolution_clock::now();
 		}
 
 		{
-			auto texGuard = texture_buffers[0]->use();
+			auto texGuard = texture_framebuffers[0]->use();
 			auto sdrGuard = scene_shader->use();
 
 			scene_shader->setUniform("MVP", MVP);

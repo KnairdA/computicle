@@ -2,7 +2,7 @@
 
 #include <vector>
 
-class TextureDisplayBuffer {
+class TextureDisplayVertexBuffer {
 private:
 	const std::vector<GLfloat> _data;
 
@@ -10,7 +10,7 @@ private:
 	GLuint _buffer;
 
 public:
-	TextureDisplayBuffer():
+	TextureDisplayVertexBuffer():
 		_data{
 			-1.f,  1.f, 0.f, 1.f,
 			-1.f, -1.f, 0.f, 0.f,
@@ -40,7 +40,7 @@ public:
 			1, 2, GL_FLOAT, GL_FALSE, 4*sizeof(GLfloat), (void*)(2*sizeof(GLfloat)));
 	}
 
-	~TextureDisplayBuffer() {
+	~TextureDisplayVertexBuffer() {
 		glDeleteBuffers(1, &_buffer);
 		glDeleteVertexArrays(1, &_array);
 	}

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "util.h"
+#include "shader/util.h"
 
 class GraphicShader {
 private:
