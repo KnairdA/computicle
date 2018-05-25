@@ -45,7 +45,7 @@ void updateMVP() {
 	);
 
 	glm::mat4 view = glm::lookAt(
-		glm::vec3(0,0,20),
+		glm::vec3(0,0,1),
 		glm::vec3(0,0,0),
 		glm::vec3(0,1,0)
 	);
@@ -96,10 +96,6 @@ int main() {
 		return -1;
 	}
 
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
 	GLFWwindow* const window = glfwCreateWindow(window_width, window_height, "computicle", NULL, NULL);
 
 	if( window == nullptr ){
@@ -116,8 +112,6 @@ int main() {
 		return -1;
 	}
 
-	glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
-
 	updateMVP();
 
 	for ( unsigned int i = 0; i < texture_count; ++i ) {
@@ -131,11 +125,8 @@ int main() {
 	GraphicShader sceneShader(VERTEX_SHADER_CODE, FRAGMENT_SHADER_CODE);
 
 	ComputeShader computeShader(
-		getShaderFunction(
-			"cos(v.x*sin(v.y))",
-			"sin(v.x-v.y)"
-		)
-	);
+		getShaderFunction("cos(v.x*sin(v.y))",
+		                  "sin(v.x-v.y)"));
 	computeShader.workOn(particleBuffer->getBuffer());
 
 	GraphicShader displayShader(DISPLAY_VERTEX_SHADER_CODE,
@@ -147,7 +138,7 @@ int main() {
 	bool justRotated = true;
 
 	std::vector<GLuint> textures;
-	for ( auto& textureBuffer : textureBuffers ) {
+	for ( const auto& textureBuffer : textureBuffers ) {
 		textures.emplace_back(textureBuffer->getTexture());
 	}
 
@@ -165,6 +156,7 @@ int main() {
 			std::rotate(textures.begin(), textures.end()-1, textures.end());
 			std::rotate(textureBuffers.begin(), textureBuffers.end()-1, textureBuffers.end());
 			justRotated = true;
+
 			lastRotate = std::chrono::high_resolution_clock::now();
 		}
 
