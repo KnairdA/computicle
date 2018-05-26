@@ -5,6 +5,8 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
+#include "key_watcher.h"
+
 class Window {
 private:
 	bool _good   = false;
@@ -20,6 +22,8 @@ public:
 
 	int getWidth() const;
 	int getHeight() const;
+
+	KeyWatcher getKeyWatcher(int key);
 
 	template <class F>
 	void init(F f);
@@ -39,8 +43,8 @@ template <class F>
 void Window::render(F loop) {
 	glfwMakeContextCurrent(_handle);
 
-	while ( glfwGetKey(_handle, GLFW_KEY_ESCAPE ) != GLFW_PRESS &&
-			glfwWindowShouldClose(_handle)        == 0 ) {
+	while ( glfwGetKey(_handle, GLFW_KEY_ESCAPE) != GLFW_PRESS &&
+	        glfwWindowShouldClose(_handle)       == 0 ) {
 		glfwGetWindowSize(_handle, &_width, &_height);
 
 		loop();

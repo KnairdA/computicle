@@ -26,7 +26,7 @@
 
 #include "timer.h"
 
-const unsigned int particle_count = 2500;
+const unsigned int particle_count = 5000;
 const unsigned int max_ups        = 100;
 const unsigned int texture_count  = 20;
 
@@ -94,7 +94,7 @@ int main() {
 	int window_width  = window.getWidth();
 	int window_height = window.getHeight();
 
-	float world_width  = 20.0;
+	float world_width  = 10.0;
 	float world_height = getWorldHeight(window_width, window_height, world_width);
 
 	glm::mat4 MVP = getMVP(world_width,  world_height);
@@ -122,7 +122,7 @@ int main() {
 			VERTEX_SHADER_CODE, FRAGMENT_SHADER_CODE);
 		compute_shader = std::make_unique<ComputeShader>(
 			getShaderFunction("cos(v.x*sin(v.y))",
-			                  "sin(v.x-v.y)"));
+                              "sin(v.x-v.y)"));
 		compute_shader->workOn(particle_buffer->getBuffer());
 		display_shader = std::make_unique<GraphicShader>(
 			DISPLAY_VERTEX_SHADER_CODE, DISPLAY_FRAGMENT_SHADER_CODE);
@@ -136,16 +136,24 @@ int main() {
 		return -1;
 	}
 
-	auto lastFrame  = timer::now();
-	auto lastRotate = timer::now();
-	bool justRotated = true;
+	auto last_frame  = timer::now();
+	auto last_rotate = timer::now();
+
+	bool just_rotated     = true;
+	bool update_particles = true;
 
 	std::vector<GLuint> textures;
 	for ( const auto& texture_buffer : texture_framebuffers ) {
 		textures.emplace_back(texture_buffer->getTexture());
 	}
 
+	auto pause_key = window.getKeyWatcher(GLFW_KEY_SPACE);
+
 	window.render([&]() {
+		if ( pause_key.wasClicked() ) {
+			update_particles = !update_particles;
+		}
+
 		if (    window.getWidth()  != window_width
 		     || window.getHeight() != window_height ) {
 			window_width  = window.getWidth();
@@ -159,35 +167,37 @@ int main() {
 			}
 		}
 
-		if ( timer::millisecondsSince(lastFrame) >= 1000/max_ups ) {
-			auto guard = compute_shader->use();
+		if ( update_particles ) {
+			if ( timer::millisecondsSince(last_frame) >= 1000/max_ups ) {
+				auto guard = compute_shader->use();
 
-			compute_shader->setUniform("world", world_width, world_height);
-			compute_shader->dispatch(particle_count);
+				compute_shader->setUniform("world", world_width, world_height);
+				compute_shader->dispatch(particle_count);
 
-			lastFrame = timer::now();
-		}
-
-		if ( timer::millisecondsSince(lastRotate) >= 1000/10 ) {
-			std::rotate(textures.begin(), textures.end()-1, textures.end());
-			std::rotate(texture_framebuffers.begin(), texture_framebuffers.end()-1, texture_framebuffers.end());
-			justRotated = true;
-
-			lastRotate = timer::now();
-		}
-
-		{
-			auto texGuard = texture_framebuffers[0]->use();
-			auto sdrGuard = scene_shader->use();
-
-			scene_shader->setUniform("MVP", MVP);
-
-			if ( justRotated ) {
-				glClear(GL_COLOR_BUFFER_BIT);
-				justRotated = false;
+				last_frame = timer::now();
 			}
 
-			particle_buffer->draw();
+			if ( timer::millisecondsSince(last_rotate) >= 1000/10 ) {
+				std::rotate(textures.begin(), textures.end()-1, textures.end());
+				std::rotate(texture_framebuffers.begin(), texture_framebuffers.end()-1, texture_framebuffers.end());
+				just_rotated = true;
+
+				last_rotate = timer::now();
+			}
+
+			{
+				auto texGuard = texture_framebuffers[0]->use();
+				auto sdrGuard = scene_shader->use();
+
+				scene_shader->setUniform("MVP", MVP);
+
+				if ( just_rotated ) {
+					glClear(GL_COLOR_BUFFER_BIT);
+					just_rotated = false;
+				}
+
+				particle_buffer->draw();
+			}
 		}
 
 		{

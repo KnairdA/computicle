@@ -16,6 +16,7 @@ add_executable(
 		src/timer.cc
 		src/glfw/guard.cc
 		src/glfw/window.cc
+		src/glfw/key_watcher.cc
 		src/shader/util.cc
 		src/shader/wrap/compute_shader.cc
 		src/shader/wrap/graphic_shader.cc

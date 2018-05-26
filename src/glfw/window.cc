@@ -22,3 +22,7 @@ int Window::getWidth() const {
 int Window::getHeight() const {
 	return _height;
 }
+
+KeyWatcher Window::getKeyWatcher(int key) {
+	return KeyWatcher(_handle, key);
+}
