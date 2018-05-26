@@ -5,8 +5,8 @@ stdenv.mkDerivation rec {
   env = buildEnv { name = name; paths = buildInputs; };
   buildInputs = [
     git cmake gcc gdb cgdb
-    glew
     glfw3
+    glew
     glm
   ];
 }

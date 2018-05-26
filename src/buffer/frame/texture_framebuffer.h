@@ -1,5 +1,9 @@
 #pragma once
 
+#include <cstdint>
+
+#include <GL/glew.h>
+
 class TextureFramebuffer {
 private:
 	GLuint _id;
@@ -11,52 +15,18 @@ public:
 	struct Guard {
 		const GLuint _id;
 
-		Guard(GLuint id): _id(id) {
-			glBindFramebuffer(GL_FRAMEBUFFER, _id);
-		}
-		~Guard() {
-			glBindFramebuffer(GL_FRAMEBUFFER, 0);
-		}
+		Guard(GLuint id);
+		~Guard();
 	};
 
-	Guard use() const {
-		return Guard(_id);
-	}
+	Guard use() const;
 
-	TextureFramebuffer(std::size_t width, std::size_t height) {
-		glGenFramebuffers(1, &_id);
+	TextureFramebuffer(std::size_t width, std::size_t height);
+	~TextureFramebuffer();
 
-		auto guard = use();
+	bool isGood() const;
 
-		glGenTextures(1, &_texture);
-		glBindTexture(GL_TEXTURE_2D, _texture);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, (void*)0);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, _texture, 0);
+	void resize(std::size_t width, std::size_t height) const;
 
-		if ( glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE ) {
-			_good = true;
-		}
-	}
-
-	~TextureFramebuffer() {
-		glDeleteFramebuffers(1, &_id);
-	}
-
-	bool isGood() const {
-		return _good;
-	}
-
-	void resize(std::size_t width, std::size_t height) const {
-		auto guard = use();
-
-		glViewport(0, 0, width, height);
-		glBindTexture(GL_TEXTURE_2D, _texture);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, (void*)0);
-	}
-
-	GLuint getTexture() const {
-		return _texture;
-	}
+	GLuint getTexture() const;
 };

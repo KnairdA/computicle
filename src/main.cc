@@ -1,9 +1,10 @@
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-
 #include <random>
 #include <memory>
 #include <algorithm>
+#include <iostream>
+
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 #include "glfw/guard.h"
 #include "glfw/window.h"
@@ -23,7 +24,7 @@
 #include "shader/code/display_vertex.glsl"
 #include "shader/code/display_fragment.glsl"
 
-#include "util.h"
+#include "timer.h"
 
 const unsigned int particle_count = 2500;
 const unsigned int max_ups        = 100;
@@ -86,7 +87,7 @@ int main() {
 	Window window("computicle");
 
 	if ( !window.isGood() ) {
-		std::cerr << "Failed to open window." << std::endl;
+		std::cerr << "Failed to open GLFW window." << std::endl;
 		return -1;
 	}
 
@@ -135,8 +136,8 @@ int main() {
 		return -1;
 	}
 
-	auto lastFrame  = std::chrono::high_resolution_clock::now();
-	auto lastRotate = std::chrono::high_resolution_clock::now();
+	auto lastFrame  = timer::now();
+	auto lastRotate = timer::now();
 	bool justRotated = true;
 
 	std::vector<GLuint> textures;
@@ -158,21 +159,21 @@ int main() {
 			}
 		}
 
-		if ( util::millisecondsSince(lastFrame) >= 1000/max_ups ) {
+		if ( timer::millisecondsSince(lastFrame) >= 1000/max_ups ) {
 			auto guard = compute_shader->use();
 
 			compute_shader->setUniform("world", world_width, world_height);
 			compute_shader->dispatch(particle_count);
 
-			lastFrame = std::chrono::high_resolution_clock::now();
+			lastFrame = timer::now();
 		}
 
-		if ( util::millisecondsSince(lastRotate) >= 1000/10 ) {
+		if ( timer::millisecondsSince(lastRotate) >= 1000/10 ) {
 			std::rotate(textures.begin(), textures.end()-1, textures.end());
 			std::rotate(texture_framebuffers.begin(), texture_framebuffers.end()-1, texture_framebuffers.end());
 			justRotated = true;
 
-			lastRotate = std::chrono::high_resolution_clock::now();
+			lastRotate = timer::now();
 		}
 
 		{
