@@ -6,8 +6,6 @@
 #include <GL/glew.h>
 #include <glm/glm.hpp>
 
-#include "shader/util.h"
-
 class GraphicShader {
 private:
 	const GLuint _id;

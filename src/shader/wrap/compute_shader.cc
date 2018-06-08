@@ -17,12 +17,21 @@ ComputeShader::Guard ComputeShader::use() const {
 
 ComputeShader::ComputeShader(const std::string& src):
 	_id(glCreateProgram()) {
-	glAttachShader(_id, util::compileShader(src, GL_COMPUTE_SHADER));
-	glLinkProgram(_id);
+	GLint shader = util::compileShader(src, GL_COMPUTE_SHADER);
+
+	if ( shader != -1 ) {
+		glAttachShader(_id, shader);
+		glLinkProgram(_id);
+		_good = true;
+	}
 }
 
 ComputeShader::~ComputeShader() {
 	glDeleteProgram(_id);
+}
+
+bool ComputeShader::isGood() const {
+	return _good;
 }
 
 GLuint ComputeShader::setUniform(const std::string& name, float x, float y) const {

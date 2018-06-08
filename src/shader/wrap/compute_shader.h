@@ -8,6 +8,8 @@ class ComputeShader {
 private:
 	const GLuint _id;
 
+	bool _good;
+
 public:
 	struct Guard {
 		const GLuint _id;
@@ -20,6 +22,8 @@ public:
 
 	ComputeShader(const std::string& src);
 	~ComputeShader();
+
+	bool isGood() const;
 
 	GLuint setUniform(const std::string& name, float x, float y) const;
 
