@@ -26,10 +26,6 @@
 
 #include "timer.h"
 
-const unsigned int particle_count = 5000;
-const unsigned int max_ups        = 100;
-const unsigned int texture_count  = 20;
-
 float getWorldHeight(int window_width, int window_height, float world_width) {
 	return world_width / window_width * window_height;
 }
@@ -76,14 +72,11 @@ std::string getShaderFunction(const std::string& fx, const std::string& fy) {
 	    + "}";
 }
 
-int main() {
-	GlfwGuard glfw;
-
-	if( !glfw.isGood() ) {
-		std::cerr << "Failed to initialize GLFW." << std::endl;
-		return -1;
-	}
-
+int renderVectorFieldWindow(
+	const std::string& fx, const std::string& fy,
+	const unsigned int particle_count = 5000,
+	const unsigned int max_ups        = 100,
+	const unsigned int texture_count  = 20) {
 	Window window("computicle");
 
 	if ( !window.isGood() ) {
@@ -120,10 +113,11 @@ int main() {
 
 		scene_shader = std::make_unique<GraphicShader>(
 			VERTEX_SHADER_CODE, FRAGMENT_SHADER_CODE);
+
 		compute_shader = std::make_unique<ComputeShader>(
-			getShaderFunction("cos(v.x*sin(v.y))",
-                              "sin(v.x-v.y)"));
+			getShaderFunction(fx, fy));
 		compute_shader->workOn(particle_buffer->getBuffer());
+
 		display_shader = std::make_unique<GraphicShader>(
 			DISPLAY_VERTEX_SHADER_CODE, DISPLAY_FRAGMENT_SHADER_CODE);
 	});
@@ -133,6 +127,11 @@ int main() {
 			return !texture_framebuffer->isGood();
 		}) ) {
 		std::cerr << "Texture framebuffer error" << std::endl;
+		return -1;
+	}
+
+	if ( !compute_shader->isGood() ) {
+		std::cerr << "Compute shader error. Check vector field definition." << std::endl;
 		return -1;
 	}
 
@@ -213,4 +212,22 @@ int main() {
 	});
 
 	return 0;
+}
+
+int main(int argc, char* argv[]) {
+	GlfwGuard glfw;
+
+	if( !glfw.isGood() ) {
+		std::cerr << "Failed to initialize GLFW." << std::endl;
+		return -1;
+	}
+
+	const std::vector<std::string> args(&argv[0], &argv[0 + argc]);
+
+	if ( argc == 3 ) {
+		return renderVectorFieldWindow(args[1], args[2]);
+	} else {
+		return renderVectorFieldWindow("cos(v.x*sin(v.y))",
+		                               "sin(v.x-v.y)");
+	}
 }
