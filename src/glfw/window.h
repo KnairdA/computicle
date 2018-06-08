@@ -17,6 +17,7 @@ private:
 
 public:
 	Window(const std::string& title);
+	~Window();
 
 	bool isGood() const;
 

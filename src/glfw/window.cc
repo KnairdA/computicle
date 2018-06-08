@@ -11,6 +11,10 @@ Window::Window(const std::string& title):
 	}
 }
 
+Window::~Window() {
+	glfwDestroyWindow(_handle);
+}
+
 bool Window::isGood() const {
 	return _good;
 }
