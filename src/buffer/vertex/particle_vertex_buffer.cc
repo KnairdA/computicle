@@ -11,7 +11,7 @@ ParticleVertexBuffer::ParticleVertexBuffer(std::vector<GLfloat>&& data):
 		GL_ARRAY_BUFFER,
 		_data.size() * sizeof(GLfloat),
 		_data.data(),
-		GL_STATIC_DRAW
+		GL_DYNAMIC_DRAW
 	);
 
 	glEnableVertexAttribArray(0);
@@ -29,5 +29,5 @@ GLuint ParticleVertexBuffer::getBuffer() const {
 
 void ParticleVertexBuffer::draw() const {
 	glBindVertexArray(_array);
-	glDrawArrays(GL_POINTS, 0, 3*_data.size());
+	glDrawArrays(GL_POINTS, 0, _data.size()/3);
 }

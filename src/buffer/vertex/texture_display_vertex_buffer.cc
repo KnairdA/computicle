@@ -19,7 +19,7 @@ TextureDisplayVertexBuffer::TextureDisplayVertexBuffer():
 		GL_ARRAY_BUFFER,
 		_data.size() * sizeof(GLfloat),
 		_data.data(),
-		GL_STATIC_DRAW
+		GL_DYNAMIC_DRAW
 	);
 
 	glEnableVertexAttribArray(0);
